@@ -21,174 +21,153 @@ from std_msgs.msg import Header
 import tf2_ros
 import geometry_msgs
 
-# Paths
-CALIB_PATH = "./src/AlliedVision_Alvium1800U/allied_vision_camera/allied_vision_camera/calib_params.json"
-MARKER_SIDE = 0.1 # meters
+from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, SetPanTilt, GetLimits
 
 
-
-# Class definition fo the estimator
-class ArucoPoseNode(Node):
+class MarkerSnooper(Node):
 	def __init__(self):
-		super().__init__("aruco_pose_estimator")
-		self.get_logger().info("Marker estimator node is awake...")
+		super().__init__("marker_snooper")
+		self.get_logger().info("Marker Snooper node is awake...")
 
-		# Class attributes
-		self.cam_params = dict()
-		self.get_logger().info("Uploading intrinsic parameters from " + CALIB_PATH)
-		self.get_cam_parameters()
-		self.get_logger().info("Parameters successfully uploaded.")
-		self.frame = []
-		self.marker_pose = []
-		self.aruco_dict = aruco.Dictionary_get(aruco.DICT_5X5_250)
-		self.aruco_params = aruco.DetectorParameters_create()
-		self.bridge = CvBridge()
-
-
-		self.frame_pub = self.create_publisher(Image, "/target_tracking/marker_image", 2)
 
 		# Subscription
-		self.frame_sub = self.create_subscription(Image, "/camera/raw_frame", self.callback_frame, 2)
+		self.frame_sub = self.create_subscription(PoseStamped, "/target_tracking/ptu_to_marker_pose", self.callback_frame, 10)
 
-		# Publishers
-		self.pose_pub = self.create_publisher(PoseStamped, "/target_tracking/camera_to_marker_pose", 10)
-		self.pose_timer = self.create_timer(0.03, self.publish_pose)
+		# Clients
+		self.client_ptu_speed = self.create_client(SetPanTiltSpeed, '/PTU/set_pan_tilt_speed')
+		while not self.client_ptu_speed.wait_for_service(timeout_sec=1.0):
+			self.get_logger().info('service SetPanTiltSpeed not available, waiting again...')
 
-		# Estimation process
-		self.thread1 = threading.Thread(target=self.estimate_pose, daemon=True)
-		self.thread1.start()
+		self.client_ptu = self.create_client(SetPanTilt, '/PTU/set_pan_tilt')
+		while not self.client_ptu.wait_for_service(timeout_sec=1.0):
+			self.get_logger().info('service SetPanTilt not available, waiting again...')
+
+		self.req_ptu_speed = SetPanTiltSpeed.Request()
+		self.req_ptu_speed.pan_speed = 0.5
+		self.req_ptu_speed.tilt_speed = 0.2
+
+		self.send_request_ptu_speed()
+
+		self.req_ptu_pos = SetPanTilt.Request()
+		self.req_ptu_pos.pan = 0.0
+		self.req_ptu_pos.tilt = 0.0
+		self.go = True
+		self.send_request_ptu_pos()
 
 
-	# Destructor function: call the stop service and disarm the camera regularly
-	def clean_exit(self):
-		self.callback_stop_service(False)
+		self.client_ptu_limits = self.create_client(GetLimits, '/PTU/get_limits')
+		while not self.client_ptu_limits.wait_for_service(timeout_sec=1.0):
+			self.get_logger().info('service GetLimits not available, waiting again...')
+
+		self.req_ptu_get_limits = GetLimits.Request()
+
+		self.send_request_ptu_limits()
+
+		self.discretization = 10
+
+		self.discretization = self.discretization * math.pi / 180.0
+
+		self.go = True
+
+		self.get_logger().info('Marker Snooper Ready...')
+
+		self.ptu_move_timer = self.create_timer(0.03, self.look_for_marker)
 
 
-	# This function is a client which asks the camera to shutdown when the node is killed
-	def  callback_stop_service(self, stop_flag):
-		client = self.create_client(CameraState, "/camera/get_cam_state")
-		while not client.wait_for_service(1.0):
-			self.get_logger().warn("Waiting for server response...")
 
-		request = CameraState.Request()
-		request.command_state = stop_flag
-
-		future = client.call_async(request)
-		future.add_done_callback(partial(self.callback_call_stop_service, stop_flag=stop_flag))
+	def send_request_ptu_limits(self):
+		self.future_2 = self.client_ptu_limits.call_async(self.req_ptu_get_limits)
+		self.future_2.add_done_callback(partial(self.callback_ptu_get_limits))
 
 	# This function is a callback to the client future
-	def callback_call_stop_service(self, future, stop_flag):
+	def callback_ptu_get_limits(self, future):
 		try:
 			response = future.result()
-			self.get_logger().info("Camera state has been set: " + str(response.cam_state))
+			self.pan_min = response.pan_min
+			self.pan_max = response.pan_max
+			self.tilt_min = response.tilt_min
+			self.tilt_max = response.tilt_max
+
 		except Exception as e:
 			self.get_logger().info("Service call failed %r" %(e,))
 
 
+	def look_for_marker(self):
+		pass
 
-	# This function publish the pose information from each frame
-	def publish_pose(self):
-		if len(self.marker_pose) != 0:
-			
-			msg = PoseStamped()
+	def send_request_ptu_speed(self):
+		self.future = self.client_ptu_speed.call_async(self.req_ptu_speed)
 
-			# If the marker is in view
-			if self.marker_pose[2]:
-				
-				msg.header = Header()
-				msg.header.stamp = self.get_clock().now().to_msg()
-				msg.header.frame_id = "PTU_cam"
 
-				# Translation
-				msg.pose.position.x = self.marker_pose[0][0][0][0]
-				msg.pose.position.y = self.marker_pose[0][0][0][1]
-				msg.pose.position.z = self.marker_pose[0][0][0][2]
+	def send_request_ptu_pos(self):
+		if self.go:
+			self.go = False
+			self.future = self.client_ptu.call_async(self.req_ptu_pos)
+			self.future.add_done_callback(partial(self.callback_return_service))
 
-				rot = R.from_rotvec([self.marker_pose[1][0][0][0], self.marker_pose[1][0][0][1], self.marker_pose[1][0][0][2]])
-				quat = rot.as_quat()
+	# This function is a callback to the client future
+	def callback_return_service(self, future):
+		try:
+			response = future.result()
+			self.go = True
+		except Exception as e:
+			self.get_logger().info("Service call failed %r" %(e,))
 
-				# short-Rodrigues (angle-axis)
-				msg.pose.orientation.x = quat[0]
-				msg.pose.orientation.y = quat[1]
-				msg.pose.orientation.z = quat[2]
-				msg.pose.orientation.w = quat[3]
-
-				# Publish the message
-				self.pose_pub.publish(msg)
-		
-
-	# This function upload from JSON the intrinsic camera parameters k_mtx and dist_coeff
-	def get_cam_parameters(self):
-		with open(CALIB_PATH, "r") as readfile:
-			self.cam_params = json.load(readfile)
-
-		self.cam_params["mtx"] = np.array(self.cam_params["mtx"], dtype=float).reshape(3, 3)
-		self.cam_params["dist"] = np.array(self.cam_params["dist"], dtype=float)
-
+	def clean_exit(self):
+		self.req_ptu_pos.pan = 0.0
+		self.req_ptu_pos.tilt = 0.0
+		self.go = True
+		self.send_request_ptu_pos()
 
 
 	# This function store the received frame in a class attribute
 	def callback_frame(self, msg):
-		frame = self.bridge.imgmsg_to_cv2(msg)
-		if len(frame.shape) == 3:
-			self.frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		else:
-			self.frame = frame
 
 
-
-	# This function detect and estimate the marker pose wrt the camera frame
-	def estimate_pose(self):
-
-		while True:
-
-			# If the 1st frame has not been received yet, return
-			while len(self.frame) != 0:
-
-				corners, ids, _ = aruco.detectMarkers(self.frame, self.aruco_dict, parameters = self.aruco_params)
-
-				# If there are no ids, jump in order not to make the code crashes
-				if np.all(ids != None):
-
-					# Pose estimation for each marker
-					rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, MARKER_SIDE, 
-						self.cam_params["mtx"], self.cam_params["dist"])
-
-					# (!!!) This line makes sense only if we use a single marker detection
-					self.marker_pose = [tvec, rvec, True]
+		self.get_logger().info('Marker in sight!')
 
 
-					# Draw the axis on the aruco markers
-					for i in range(0, ids.size):
-						aruco.drawAxis(self.frame, self.cam_params["mtx"], self.cam_params["dist"], rvec[i], tvec[i], 0.1)
+	def move_ptu(self, pan, tilt):
+		print("discretization: {0}".format(self.discretization))
+		print("Wanted pan: {0}".format(pan))
+		print("Wanted tilt: {0}".format(tilt))
 
-					# Draw a square on the markers perimeter
-					aruco.drawDetectedMarkers(self.frame, corners)
+		pan_discret = int(pan / self.discretization)
+		if math.abs(pan % self.discretization) > self.discretization / 2.0:
+			if pan < 0:
+				pan_discret = pan_discret - 1
+			else:
+				pan_discret = pan_discret + 1
 
-				else:
-					self.marker_pose = [0, 0, False]
+		self.req_ptu_pos.pan = float(pan_discret * self.discretization)
 
 
-				self.image_message = self.bridge.cv2_to_imgmsg(self.frame, encoding="mono8")
-				self.image_message.header = Header()
-				self.image_message.header.stamp = self.get_clock().now().to_msg()
-				self.image_message.header.frame_id = "Camera_Base"
-				self.frame_pub.publish(self.image_message)
-	
+		tilt_discret = int(tilt / self.discretization)
+		if math.abs(tilt % self.discretization) > self.discretization / 2.0:
+			if tilt < 0:
+				tilt_discret = tilt_discret - 1
+			else:
+				tilt_discret = tilt_discret + 1
+
+		self.req_ptu_pos.tilt = float(tilt_discret * self.discretization)
+
+		print("Result pan: {0}".format(self.req_ptu_pos.pan))
+		print("Result tilt: {0}".format(self.req_ptu_pos.tilt))
+
+		self.send_request_ptu_pos()
 
 
 # Main loop function
 def main(args=None):
 	rclpy.init(args=args)
-	node = ArucoPoseNode()
+	node = MarkerSnooper()
 	
 	try:
 		rclpy.spin(node)
 	except KeyboardInterrupt:
-		pass
-		node.clean_exit()
+		print("Marker Snooper Node stopped clearly")
 	except BaseException:
-		print('exception in server:', file=sys.stderr)
+		print('Exception in Marker Snooper Node:', file=sys.stderr)
 		raise
 	finally:
 		# Destroy the node explicitly
