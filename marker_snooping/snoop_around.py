@@ -20,6 +20,9 @@ from scipy.spatial.transform import Rotation as R
 from std_msgs.msg import Header
 import tf2_ros
 import geometry_msgs
+import math
+import time
+import sys
 
 from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, SetPanTilt, GetLimits
 
@@ -29,9 +32,15 @@ class MarkerSnooper(Node):
 		super().__init__("marker_snooper")
 		self.get_logger().info("Marker Snooper node is awake...")
 
+		self.tilt_static = 0.2
 
-		# Subscription
-		self.frame_sub = self.create_subscription(PoseStamped, "/target_tracking/ptu_to_marker_pose", self.callback_frame, 10)
+		self.step_snooping = 0.0
+		self.current_pan = 0.0
+
+		self.discretization = 10
+		self.time_to_sleep = 4
+
+		self.marker_in_sight = False
 
 		# Clients
 		self.client_ptu_speed = self.create_client(SetPanTiltSpeed, '/PTU/set_pan_tilt_speed')
@@ -49,11 +58,6 @@ class MarkerSnooper(Node):
 		self.send_request_ptu_speed()
 
 		self.req_ptu_pos = SetPanTilt.Request()
-		self.req_ptu_pos.pan = 0.0
-		self.req_ptu_pos.tilt = 0.0
-		self.go = True
-		self.send_request_ptu_pos()
-
 
 		self.client_ptu_limits = self.create_client(GetLimits, '/PTU/get_limits')
 		while not self.client_ptu_limits.wait_for_service(timeout_sec=1.0):
@@ -63,21 +67,11 @@ class MarkerSnooper(Node):
 
 		self.send_request_ptu_limits()
 
-		self.discretization = 10
-
-		self.discretization = self.discretization * math.pi / 180.0
-
-		self.go = True
-
-		self.get_logger().info('Marker Snooper Ready...')
-
-		self.ptu_move_timer = self.create_timer(0.03, self.look_for_marker)
-
 
 
 	def send_request_ptu_limits(self):
-		self.future_2 = self.client_ptu_limits.call_async(self.req_ptu_get_limits)
-		self.future_2.add_done_callback(partial(self.callback_ptu_get_limits))
+		self.future = self.client_ptu_limits.call_async(self.req_ptu_get_limits)
+		self.future.add_done_callback(partial(self.callback_ptu_get_limits))
 
 	# This function is a callback to the client future
 	def callback_ptu_get_limits(self, future):
@@ -88,71 +82,79 @@ class MarkerSnooper(Node):
 			self.tilt_min = response.tilt_min
 			self.tilt_max = response.tilt_max
 
+			self.step_snooping = (self.pan_max - self.pan_min) / self.discretization
+			self.current_pan = self.pan_min
+
+			self.move_ptu(self.current_pan, self.tilt_static)
+			time.sleep(10)
+
+			self.get_logger().info('Marker Snooper Ready...')
+
+			# Subscription
+			self.marker_sub = self.create_subscription(PoseStamped, "/target_tracking/camera_to_marker_pose", self.callback_marker, 1)
+
+			self.look_for_marker()
+
+
 		except Exception as e:
 			self.get_logger().info("Service call failed %r" %(e,))
 
 
 	def look_for_marker(self):
-		pass
+		if not self.marker_in_sight:
+			print("current_pan: {0}".format(self.current_pan))
+
+			self.move_ptu(self.current_pan, self.tilt_static)
+
 
 	def send_request_ptu_speed(self):
-		self.future = self.client_ptu_speed.call_async(self.req_ptu_speed)
+		self.client_ptu_speed.call_async(self.req_ptu_speed)
 
 
 	def send_request_ptu_pos(self):
-		if self.go:
-			self.go = False
-			self.future = self.client_ptu.call_async(self.req_ptu_pos)
-			self.future.add_done_callback(partial(self.callback_return_service))
+		self.future_ptu_pos = self.client_ptu.call_async(self.req_ptu_pos)
+		self.future_ptu_pos.add_done_callback(partial(self.callback_return_service))
+
 
 	# This function is a callback to the client future
 	def callback_return_service(self, future):
 		try:
 			response = future.result()
-			self.go = True
+			
+			if not self.marker_in_sight:
+				self.sleep_timer = self.create_timer((self.time_to_sleep), self.restart_snoop)
+
 		except Exception as e:
 			self.get_logger().info("Service call failed %r" %(e,))
 
-	def clean_exit(self):
-		self.req_ptu_pos.pan = 0.0
-		self.req_ptu_pos.tilt = 0.0
-		self.go = True
-		self.send_request_ptu_pos()
+	def restart_snoop(self):
+		try:
+			self.sleep_timer.destroy()
+
+			self.current_pan = self.current_pan + self.step_snooping
+
+			if self.current_pan > self.pan_max:
+				print("Marker not found!")
+			else:
+				self.look_for_marker()
+
+		except Exception as e:
+			pass
+
 
 
 	# This function store the received frame in a class attribute
-	def callback_frame(self, msg):
+	def callback_marker(self, msg):
 
+		self.marker_in_sight = True
 
 		self.get_logger().info('Marker in sight!')
 
 
 	def move_ptu(self, pan, tilt):
-		print("discretization: {0}".format(self.discretization))
-		print("Wanted pan: {0}".format(pan))
-		print("Wanted tilt: {0}".format(tilt))
+		self.req_ptu_pos.pan = float(pan)
 
-		pan_discret = int(pan / self.discretization)
-		if math.abs(pan % self.discretization) > self.discretization / 2.0:
-			if pan < 0:
-				pan_discret = pan_discret - 1
-			else:
-				pan_discret = pan_discret + 1
-
-		self.req_ptu_pos.pan = float(pan_discret * self.discretization)
-
-
-		tilt_discret = int(tilt / self.discretization)
-		if math.abs(tilt % self.discretization) > self.discretization / 2.0:
-			if tilt < 0:
-				tilt_discret = tilt_discret - 1
-			else:
-				tilt_discret = tilt_discret + 1
-
-		self.req_ptu_pos.tilt = float(tilt_discret * self.discretization)
-
-		print("Result pan: {0}".format(self.req_ptu_pos.pan))
-		print("Result tilt: {0}".format(self.req_ptu_pos.tilt))
+		self.req_ptu_pos.tilt = float(tilt)
 
 		self.send_request_ptu_pos()
 
