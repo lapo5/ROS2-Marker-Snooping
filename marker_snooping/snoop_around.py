@@ -37,7 +37,7 @@ class MarkerSnooper(Node):
 		self.step_snooping = 0.0
 		self.current_pan = 0.0
 
-		self.discretization = 10
+		self.discretization = 12
 		self.time_to_sleep = 4
 
 		self.marker_in_sight = False
@@ -82,7 +82,11 @@ class MarkerSnooper(Node):
 			self.tilt_min = response.tilt_min
 			self.tilt_max = response.tilt_max
 
-			self.step_snooping = (self.pan_max - self.pan_min) / self.discretization
+			print("Max pan: {0}".format(self.pan_max))
+			print("Min pan: {0}".format(self.pan_min))
+
+			self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
+			print("Step Pan Snoop: {0}".format(self.step_snooping))
 			self.current_pan = self.pan_min
 
 			self.move_ptu(self.current_pan, self.tilt_static)
@@ -146,7 +150,8 @@ class MarkerSnooper(Node):
 	# This function store the received frame in a class attribute
 	def callback_marker(self, msg):
 
-		self.marker_in_sight = True
+		if not self.marker_in_sight:
+			self.marker_in_sight = True
 
 		self.get_logger().info('Marker in sight!')
 
