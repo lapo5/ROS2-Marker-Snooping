@@ -14,6 +14,7 @@ from allied_vision_camera_interfaces.srv import CameraState
 from functools import partial
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 
+from std_srvs.srv import Empty
 import rclpy.time
 from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
 from tf2_ros.buffer import Buffer
@@ -69,12 +70,8 @@ class MarkerSnooper(Node):
         self.world__T__marker[2, 2] = 0.0 
         self.world__T__marker[2, 3] = 0.0 
 
-        # Clients
-        #self.client_set_pose = self.create_client(SetPose, '/set_pose')
-        #while not self.client_set_pose.wait_for_service(timeout_sec=1.0):
-        #    self.get_logger().info('service SetPose not available, waiting again...')
-
-
+        # Service: stop acquisition
+        self.stop_service = self.create_service(Empty, "/marker_snooping/start", self.start_snooping)
 
         # Clients
         self.client_ptu_speed = self.create_client(SetPanTiltSpeed, '/PTU/set_pan_tilt_speed')
@@ -121,21 +118,33 @@ class MarkerSnooper(Node):
 
             self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
             print("Step Pan Snoop: {0}".format(self.step_snooping))
-            self.current_pan = self.pan_min
-
-            self.move_ptu(self.current_pan, self.tilt_static)
-            time.sleep(6)
-
-            self.get_logger().info('Marker Snooper Ready...')
-
-            # Subscription
-            self.marker_sub = self.create_subscription(PoseStamped, "/target_tracking/ptu_to_marker_pose", self.callback_marker, 1)
-
-            self.look_for_marker()
-
 
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
+
+    def start(self)
+        self.current_pan = self.pan_min
+
+        self.move_ptu(self.current_pan, self.tilt_static)
+        time.sleep(6)
+
+        self.get_logger().info('Marker Snooper Ready...')
+
+        self.look_for_marker()
+
+        # Subscription
+        self.marker_sub = self.create_subscription(PoseStamped, "/target_tracking/ptu_to_marker_pose", self.callback_marker, 1)
+
+
+
+    # This function stops/enable the acquisition stream
+    def start_snooping(self, request, response):
+ 
+        self.marker_in_sight = False
+        self.start()
+
+        return response
+
 
 
     def look_for_marker(self):
@@ -173,6 +182,7 @@ class MarkerSnooper(Node):
 
             if self.current_pan > self.pan_max:
                 print("Marker not found!")
+                self.marker_in_sight = False
             else:
                 self.look_for_marker()
 
@@ -201,9 +211,6 @@ class MarkerSnooper(Node):
                    "odom",
                    "ptu_base_link",
                    rclpy.time.Time())
-
-            print("Trans: {0}".format(trans))
-
 
             odom__T__ptu_base = np.eye(4, dtype=np.float32)
 
