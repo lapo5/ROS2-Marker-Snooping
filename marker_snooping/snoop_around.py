@@ -57,7 +57,7 @@ class MarkerSnooper(Node):
         self.world__T__marker = np.eye(4, dtype=np.float32)
         self.world__T__marker[0, 0] = 0.0 
         self.world__T__marker[0, 1] = 0.0
-        self.world__T__marker[0, 2] = -1.0 
+        self.world__T__marker[0, 2] = 1.0 
         self.world__T__marker[0, 3] = -1.0 
 
         self.world__T__marker[1, 0] = 1.0
@@ -122,7 +122,7 @@ class MarkerSnooper(Node):
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
 
-    def start(self)
+    def start(self):
         self.current_pan = self.pan_min
 
         self.move_ptu(self.current_pan, self.tilt_static)
