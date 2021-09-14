@@ -45,11 +45,16 @@ class MarkerSnooper(Node):
         self.step_snooping = 0.0
         self.current_pan = 0.0
 
-        self.discretization = 12
+        self.discretization = 10
         self.time_to_sleep = 4
 
-        # Service: stop acquisition
-        self.stop_service = self.create_service(Empty, "/marker_snooping/start", self.start_snooping)
+        self.operating = False
+
+        # Subscription
+        self.marker_sub = self.create_subscription(PoseStamped, "/target_tracking/ptu_to_marker_pose", self.callback_marker, 1)
+
+        # Service: start snooping
+        self.start_snooping_service = self.create_service(Empty, "/marker_snooping/start", self.start_snooping)
 
         # Clients
         self.client_ptu_speed = self.create_client(SetPanTiltSpeed, '/PTU/set_pan_tilt_speed')
@@ -110,14 +115,13 @@ class MarkerSnooper(Node):
 
         self.look_for_marker()
 
-        # Subscription
-        self.marker_sub = self.create_subscription(PoseStamped, "/target_tracking/ptu_to_marker_pose", self.callback_marker, 1)
 
 
 
     # This function stops/enable the acquisition stream
     def start_snooping(self, request, response):
- 
+
+        self.operating = True
         self.marker_in_sight = False
         self.start()
 
@@ -126,8 +130,8 @@ class MarkerSnooper(Node):
 
 
     def look_for_marker(self):
-        if not self.marker_in_sight:
-            print("current_pan: {0}".format(self.current_pan))
+        if self.operating:
+            self.get_logger().info('Current Pan: {0}'.format(self.current_pan))
 
             self.move_ptu(self.current_pan, self.tilt_static)
 
@@ -146,51 +150,41 @@ class MarkerSnooper(Node):
         try:
             response = future.result()
             
-            if not self.marker_in_sight:
+            if self.operating:
                 self.sleep_timer = self.create_timer((self.time_to_sleep), self.restart_snoop)
 
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
 
     def restart_snoop(self):
-        try:
-            self.sleep_timer.destroy()
+        if not self.operating:
+            try:
+                self.sleep_timer.destroy()
+            except Exception as e:
+                pass
 
-            self.current_pan = self.current_pan + self.step_snooping
+        else:
+            try:
+                self.sleep_timer.destroy()
 
-            if self.current_pan > self.pan_max:
-                print("Marker not found!")
-                self.marker_in_sight = False
-            else:
-                self.look_for_marker()
+                self.current_pan = self.current_pan + self.step_snooping
 
-        except Exception as e:
-            pass
+                if self.current_pan > self.pan_max:
+                    print("Marker not found!")
+                    self.operating = False
+                else:
+                    self.look_for_marker()
+
+            except Exception as e:
+                pass
 
 
 
     # This function store the received frame in a class attribute
     def callback_marker(self, msg):
-
-        self.get_logger().info('Marker in sight!')
-
-
-
-    def send_request_set_pose(self):
-        self.future = self.client_set_pose.call_async(self.req_set_pose)
-        self.future.add_done_callback(partial(self.callback_request_set_pose))
-
-    # This function is a callback to the client future
-    def callback_request_set_pose(self, future):
-        try:
-            response = future.result()
-
-            self.get_logger().info('Set Pose Results: {0}'.format(response))
-
-
-        except Exception as e:
-            self.get_logger().info("Service call failed %r" %(e,))
-
+        if self.operating and not self.marker_in_sight:   
+            self.operating = False
+            self.get_logger().info('Marker in sight!')
 
 
     def move_ptu(self, pan, tilt):
