@@ -48,28 +48,6 @@ class MarkerSnooper(Node):
         self.discretization = 12
         self.time_to_sleep = 4
 
-        self.marker_in_sight = False
-
-        self.static_broadcaster = tf2_ros.StaticTransformBroadcaster(self)
-        self._tf_buffer = Buffer()
-        self._tf_listener = TransformListener(self._tf_buffer, self)
-
-        self.world__T__marker = np.eye(4, dtype=np.float32)
-        self.world__T__marker[0, 0] = 0.0 
-        self.world__T__marker[0, 1] = 0.0
-        self.world__T__marker[0, 2] = 1.0 
-        self.world__T__marker[0, 3] = -1.0 
-
-        self.world__T__marker[1, 0] = 1.0
-        self.world__T__marker[1, 1] = 0.0 
-        self.world__T__marker[1, 2] = 0.0
-        self.world__T__marker[1, 3] = -5.0
-
-        self.world__T__marker[2, 0] = 0.0
-        self.world__T__marker[2, 1] = 1.0
-        self.world__T__marker[2, 2] = 0.0 
-        self.world__T__marker[2, 3] = 0.0 
-
         # Service: stop acquisition
         self.stop_service = self.create_service(Empty, "/marker_snooping/start", self.start_snooping)
 
@@ -194,60 +172,7 @@ class MarkerSnooper(Node):
     # This function store the received frame in a class attribute
     def callback_marker(self, msg):
 
-        if not self.marker_in_sight:
-            self.marker_in_sight = True
-
-            self.get_logger().info('Marker in sight!')
-
-            ptu_base__T__marker = np.eye(4, dtype=np.float32)
-
-            rot = R.from_quat([msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w])
-            ptu_base__T__marker[0:3, 0:3] = rot.as_matrix()
-            ptu_base__T__marker[0, 3] = msg.pose.position.x
-            ptu_base__T__marker[1, 3] = msg.pose.position.y
-            ptu_base__T__marker[2, 3] = msg.pose.position.z
-
-            trans = self._tf_buffer.lookup_transform(
-                   "odom",
-                   "ptu_base_link",
-                   rclpy.time.Time())
-
-            odom__T__ptu_base = np.eye(4, dtype=np.float32)
-
-            trans_pose = trans.transform
-
-            rot = R.from_quat([trans_pose.rotation.x, trans_pose.rotation.y, trans_pose.rotation.z, trans_pose.rotation.w])
-            odom__T__ptu_base[0:3, 0:3] = rot.as_matrix()
-            odom__T__ptu_base[0, 3] = trans_pose.translation.x
-            odom__T__ptu_base[1, 3] = trans_pose.translation.y
-            odom__T__ptu_base[2, 3] = trans_pose.translation.z
-
-            odom__T__marker = np.matmul(odom__T__ptu_base, ptu_base__T__marker)
-
-            marker__T__odom = np.linalg.inv(odom__T__marker) 
-
-            world__T__odom = np.matmul(self.world__T__marker, marker__T__odom)
-
-
-            static_transformStamped = geometry_msgs.msg.TransformStamped()
-
-            static_transformStamped.header.stamp = self.get_clock().now().to_msg()
-            static_transformStamped.header.frame_id = "world"
-            static_transformStamped.child_frame_id = "odom"
-
-            static_transformStamped.transform.translation.x = float(world__T__odom[0, 3])
-            static_transformStamped.transform.translation.y = float(world__T__odom[1, 3])
-            static_transformStamped.transform.translation.z = float(world__T__odom[2, 3])
-
-            rot = R.from_matrix(world__T__odom[0:3, 0:3])
-            quat = rot.as_quat()
-
-            static_transformStamped.transform.rotation.x = float(quat[0])
-            static_transformStamped.transform.rotation.y = float(quat[1])
-            static_transformStamped.transform.rotation.z = float(quat[2])
-            static_transformStamped.transform.rotation.w = float(quat[3])
-
-            self.static_broadcaster.sendTransform(static_transformStamped)
+        self.get_logger().info('Marker in sight!')
 
 
 
