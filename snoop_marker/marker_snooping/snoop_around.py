@@ -5,35 +5,32 @@ import cv2
 from cv2 import aruco
 import rclpy
 from rclpy.node import Node
-from cv_bridge import CvBridge
 import threading
-from std_msgs.msg import Header
-from sensor_msgs.msg import Image
-from allied_vision_camera_interfaces.msg import Pose
-from allied_vision_camera_interfaces.srv import CameraState
+from threading import Event, Thread
+
 from functools import partial
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 
 from std_srvs.srv import Empty
+
+from snoop_marker_interfaces.action import Snooping
+
 import rclpy.time
-from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
-from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
+from rclpy.action import ActionClient,ActionServer
 
 import json
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from std_msgs.msg import Header
-import tf2_ros
 import geometry_msgs
 import math
 import time
 import sys
 
-from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, SetPanTilt, GetLimits
+from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, GetLimits
+from flir_ptu_d46_interfaces.action import SetPanTilt
 
-from robot_localization.srv import SetPose
 
 class MarkerSnooper(Node):
     def __init__(self):
@@ -46,32 +43,44 @@ class MarkerSnooper(Node):
         self.current_pan = 0.0
 
         self.discretization = 10
-        self.time_to_sleep = 4
+        self.current_step = 0
+        self.time_to_sleep = 3.0
 
         self.operating = False
+        self.sleep_timer = None
+
+        self.ptu_arrived = False
+
 
         # Subscription
         self.marker_sub = self.create_subscription(PoseStamped, "/target_tracking/ptu_to_marker_pose", self.callback_marker, 1)
 
         # Service: start snooping
-        self.start_snooping_service = self.create_service(Empty, "/marker_snooping/start", self.start_snooping)
+        self.start_snooping_service = self.create_service(Empty, "/marker_snooping/start", self.execute_service_start_callback)
+
+        self.start_snooping_action = ActionServer(
+            self,
+            Snooping,
+            '/marker_snooping/start_action',
+            self.execute_action_start_callback)
 
         # Clients
+
+        self.action_client_ptu = ActionClient(self, SetPanTilt, '/PTU/set_pan_tilt')
+        while not self.action_client_ptu.wait_for_server(timeout_sec=1.0):
+            self.get_logger().info('Action SetPanTilt not available, waiting again...')
+
+        self.req_ptu_pos = SetPanTilt.Goal()
+
         self.client_ptu_speed = self.create_client(SetPanTiltSpeed, '/PTU/set_pan_tilt_speed')
         while not self.client_ptu_speed.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service SetPanTiltSpeed not available, waiting again...')
-
-        self.client_ptu = self.create_client(SetPanTilt, '/PTU/set_pan_tilt')
-        while not self.client_ptu.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service SetPanTilt not available, waiting again...')
 
         self.req_ptu_speed = SetPanTiltSpeed.Request()
         self.req_ptu_speed.pan_speed = 0.5
         self.req_ptu_speed.tilt_speed = 0.2
 
         self.send_request_ptu_speed()
-
-        self.req_ptu_pos = SetPanTilt.Request()
 
         self.client_ptu_limits = self.create_client(GetLimits, '/PTU/get_limits')
         while not self.client_ptu_limits.wait_for_service(timeout_sec=1.0):
@@ -100,99 +109,128 @@ class MarkerSnooper(Node):
             print("Min pan: {0}".format(self.pan_min))
 
             self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
+            
             print("Step Pan Snoop: {0}".format(self.step_snooping))
 
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
 
-    def start(self):
-        self.current_pan = self.pan_min
-
-        self.move_ptu(self.current_pan, self.tilt_static)
-        time.sleep(6)
-
-        self.get_logger().info('Marker Snooper Ready...')
-
-        self.look_for_marker()
-
 
 
 
     # This function stops/enable the acquisition stream
-    def start_snooping(self, request, response):
+    def execute_service_start_callback(self, request, response):
 
+        self.current_step = 1
+        self.ptu_arrived = False
         self.operating = True
         self.marker_in_sight = False
-        self.start()
+        self.current_pan = self.pan_min
+        self.restart_snoop()
 
         return response
 
 
 
-    def look_for_marker(self):
-        if self.operating:
-            self.get_logger().info('Current Pan: {0}'.format(self.current_pan))
+    def execute_action_start_callback(self, goal_handle):
+        self.get_logger().info('Executing goal...')
 
-            self.move_ptu(self.current_pan, self.tilt_static)
+        self.current_step = 1
+        self.ptu_arrived = False
+        self.operating = True
+        self.marker_in_sight = False
+        self.current_pan = self.pan_min
+
+        self.feedback_msg = Snooping.Feedback()
+        self.goal_handle = goal_handle
+
+        self.restart_snoop()
+
+        goal_handle.succeed()
+
+        result = Snooping.Result()
+        result.ret = self.marker_in_sight
+
+        return result
 
 
     def send_request_ptu_speed(self):
         self.client_ptu_speed.call_async(self.req_ptu_speed)
 
 
-    def send_request_ptu_pos(self):
-        self.future_ptu_pos = self.client_ptu.call_async(self.req_ptu_pos)
-        self.future_ptu_pos.add_done_callback(partial(self.callback_return_service))
-
 
     # This function is a callback to the client future
-    def callback_return_service(self, future):
+    def goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            return
+
+        self._get_result_future = goal_handle.get_result_async()
+        self._get_result_future.add_done_callback(self.get_result_callback)
+
+    def get_result_callback(self, future):
         try:
-            response = future.result()
+            response = future.result().result
             
+            self.feedback_msg.percentage_of_completing = int(self.current_step  * 100.0 / float(self.discretization + 1))
+            self.goal_handle.publish_feedback(self.feedback_msg)
+
             if self.operating:
-                self.sleep_timer = self.create_timer((self.time_to_sleep), self.restart_snoop)
+                self.sleep_timer = self.create_timer((self.time_to_sleep), self.move_ptu_completed)
 
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
 
+    def move_ptu_completed(self):
+        self.ptu_arrived = True
+
+    def keep_spinning(self):
+        while self.operating: 
+            rclpy.spin_once(self)
+
     def restart_snoop(self):
-        if not self.operating:
-            try:
-                self.sleep_timer.destroy()
-            except Exception as e:
-                pass
 
-        else:
-            try:
-                self.sleep_timer.destroy()
+        self.feedback_msg.percentage_of_completing = 0
+        self.goal_handle.publish_feedback(self.feedback_msg)
 
-                self.current_pan = self.current_pan + self.step_snooping
+        while self.operating:
+            try:
+                if self.sleep_timer is not None:
+                    self.sleep_timer.cancel()
 
                 if self.current_pan > self.pan_max:
-                    print("Marker not found!")
+                    self.get_logger().info('Marker not found!')
                     self.operating = False
                 else:
-                    self.look_for_marker()
+                    self.move_ptu(self.current_pan, self.tilt_static)
+
+                    self.current_pan = self.current_pan + self.step_snooping
+
+
+                    self.current_step = self.current_step + 1
 
             except Exception as e:
                 pass
-
+                    
 
 
     # This function store the received frame in a class attribute
     def callback_marker(self, msg):
         if self.operating and not self.marker_in_sight:   
-            self.operating = False
+            self.marker_in_sight = True
             self.get_logger().info('Marker in sight!')
+            self.operating = False
 
 
     def move_ptu(self, pan, tilt):
+        self.ptu_arrived = False
         self.req_ptu_pos.pan = float(pan)
-
         self.req_ptu_pos.tilt = float(tilt)
 
-        self.send_request_ptu_pos()
+        self.future_ptu_pos = self.action_client_ptu.send_goal_async(self.req_ptu_pos)
+        self.future_ptu_pos.add_done_callback(self.goal_response_callback)
+        while not self.ptu_arrived:
+            rclpy.spin_once(self)
 
 
 # Main loop function
@@ -201,7 +239,9 @@ def main(args=None):
     node = MarkerSnooper()
     
     try:
-        rclpy.spin(node)
+        while rclpy.ok():
+            rclpy.spin_once(node)
+
     except KeyboardInterrupt:
         print("Marker Snooper Node stopped clearly")
     except BaseException:
@@ -210,7 +250,7 @@ def main(args=None):
     finally:
         # Destroy the node explicitly
         # (optional - Done automatically when node is garbage collected)
-        node.destroy_node()
+        
         rclpy.shutdown() 
 
 
