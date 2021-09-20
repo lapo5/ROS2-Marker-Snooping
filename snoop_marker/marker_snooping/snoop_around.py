@@ -16,7 +16,7 @@ from std_srvs.srv import Empty
 from snoop_marker_interfaces.action import Snooping
 
 import rclpy.time
-from rclpy.action import ActionClient,ActionServer
+from rclpy.action import ActionClient, ActionServer
 
 import json
 import numpy as np
@@ -42,7 +42,7 @@ class MarkerSnooper(Node):
         self.step_snooping = 0.0
         self.current_pan = 0.0
 
-        self.discretization = 10
+        self.discretization = 2
         self.current_step = 0
         self.time_to_sleep = 3.0
 
@@ -183,10 +183,6 @@ class MarkerSnooper(Node):
 
     def move_ptu_completed(self):
         self.ptu_arrived = True
-
-    def keep_spinning(self):
-        while self.operating: 
-            rclpy.spin_once(self)
 
     def restart_snoop(self):
 
