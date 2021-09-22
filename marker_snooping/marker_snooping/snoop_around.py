@@ -1,33 +1,23 @@
 #!/usr/bin/env python3
 
 # Libraries
-import cv2
-from cv2 import aruco
-import rclpy
-from rclpy.node import Node
-import threading
-from threading import Event, Thread
-
-from functools import partial
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
-
-from std_srvs.srv import Empty
-
-from snoop_marker_interfaces.action import Snooping
-
-import rclpy.time
-from rclpy.action import ActionClient, ActionServer
-
+import sys
 import json
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-from std_msgs.msg import Header
-import geometry_msgs
-import math
-import time
-import sys
+import rclpy
+from rclpy.node import Node
+import rclpy.time
+from rclpy.action import ActionClient, ActionServer
 
+from functools import partial
+from geometry_msgs.msg import PoseStamped
+
+from std_msgs.msg import Header
+from std_srvs.srv import Empty
+
+from snoop_marker_interfaces.action import Snooping
 from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, GetLimits
 from flir_ptu_d46_interfaces.action import SetPanTilt
 
@@ -246,7 +236,6 @@ def main(args=None):
     finally:
         # Destroy the node explicitly
         # (optional - Done automatically when node is garbage collected)
-        
         rclpy.shutdown() 
 
 
