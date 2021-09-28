@@ -17,7 +17,7 @@ from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Header
 from std_srvs.srv import Empty
 
-from snoop_marker_interfaces.action import Snooping
+from marker_snooping_interfaces.action import Snooping
 from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, GetLimits
 from flir_ptu_d46_interfaces.action import SetPanTilt
 
