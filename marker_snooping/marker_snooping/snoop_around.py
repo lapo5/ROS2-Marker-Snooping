@@ -32,7 +32,7 @@ class MarkerSnooper(Node):
         self.step_snooping = 0.0
         self.current_pan = 0.0
 
-        self.discretization = 2
+        self.discretization = 10
         self.current_step = 0
         self.time_to_sleep = 3.0
 
@@ -53,6 +53,7 @@ class MarkerSnooper(Node):
             Snooping,
             '/marker_snooping/start_action',
             self.execute_action_start_callback)
+        self.executing_action = False
 
         # Clients
 
@@ -129,6 +130,7 @@ class MarkerSnooper(Node):
         self.ptu_arrived = False
         self.operating = True
         self.marker_in_sight = False
+        self.executing_action = True
         self.current_pan = self.pan_min
 
         self.feedback_msg = Snooping.Feedback()
@@ -140,6 +142,7 @@ class MarkerSnooper(Node):
 
         result = Snooping.Result()
         result.ret = self.marker_in_sight
+        self.executing_action = False
 
         return result
 
@@ -175,9 +178,10 @@ class MarkerSnooper(Node):
         self.ptu_arrived = True
 
     def restart_snoop(self):
-
-        self.feedback_msg.percentage_of_completing = 0
-        self.goal_handle.publish_feedback(self.feedback_msg)
+        
+        if self.executing_action:
+            self.feedback_msg.percentage_of_completing = 0
+            self.goal_handle.publish_feedback(self.feedback_msg)
 
         while self.operating:
             try:
