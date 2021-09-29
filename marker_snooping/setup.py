@@ -16,14 +16,14 @@ setup(
         ('share/' + package_name, ['package.xml']),
         # Include all launch files. This is the most important line here!
         (os.path.join('share', package_name), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'params'), glob('params/*.yaml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='ale_scar',
-    maintainer_email='ale_scar@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
-    tests_require=['pytest'],
+    maintainer='Marco Lapolla',
+    maintainer_email='marco.lapolla5gmail.com',
+    description='Marker Snooping via PTU Control',
+    license='BSD',
     entry_points={
         'console_scripts': [
         'marker_snooping = marker_snooping.snoop_around:main',

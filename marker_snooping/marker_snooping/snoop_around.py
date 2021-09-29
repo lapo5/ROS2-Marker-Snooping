@@ -41,29 +41,46 @@ class MarkerSnooper(Node):
 
         self.ptu_arrived = False
 
+        self.declare_parameter("subscribers.ptu_to_marker_pose", "/target_tracking/ptu_to_marker_pose")
+        self.ptu_to_marker_pose_topic = self.get_parameter("subscribers.ptu_to_marker_pose").value
+
+        self.declare_parameter("services.start", "/marker_snooping/start")
+        self.start_service = self.get_parameter("services.start").value
+
+        self.declare_parameter("services_client.set_pan_tilt", "/PTU/set_pan_tilt")
+        self.set_pan_tilt_service = self.get_parameter("services_client.set_pan_tilt").value
+
+        self.declare_parameter("services_client.set_pan_tilt_speed", "/PTU/set_pan_tilt_speed")
+        self.set_pan_tilt_speed_service = self.get_parameter("services_client.set_pan_tilt_speed").value
+
+        self.declare_parameter("services_client.get_limits", "/PTU/get_limits")
+        self.ptu_get_limits_service = self.get_parameter("services_client.get_limits").value
+
+        self.declare_parameter("actions.start", "/marker_snooping/start_action")
+        self.start_action = self.get_parameter("actions.start").value
 
         # Subscription
-        self.marker_sub = self.create_subscription(PoseStamped, "/target_tracking/ptu_to_marker_pose", self.callback_marker, 1)
+        self.marker_sub = self.create_subscription(PoseStamped, self.ptu_to_marker_pose_topic, self.callback_marker, 1)
 
         # Service: start snooping
-        self.start_snooping_service = self.create_service(Empty, "/marker_snooping/start", self.execute_service_start_callback)
+        self.start_snooping_service = self.create_service(Empty, self.start_service, self.execute_service_start_callback)
 
         self.start_snooping_action = ActionServer(
             self,
             Snooping,
-            '/marker_snooping/start_action',
+            self.start_action,
             self.execute_action_start_callback)
         self.executing_action = False
 
         # Clients
 
-        self.action_client_ptu = ActionClient(self, SetPanTilt, '/PTU/set_pan_tilt')
+        self.action_client_ptu = ActionClient(self, SetPanTilt, self.set_pan_tilt_service)
         while not self.action_client_ptu.wait_for_server(timeout_sec=1.0):
             self.get_logger().info('Action SetPanTilt not available, waiting again...')
 
         self.req_ptu_pos = SetPanTilt.Goal()
 
-        self.client_ptu_speed = self.create_client(SetPanTiltSpeed, '/PTU/set_pan_tilt_speed')
+        self.client_ptu_speed = self.create_client(SetPanTiltSpeed, self.set_pan_tilt_speed_service)
         while not self.client_ptu_speed.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service SetPanTiltSpeed not available, waiting again...')
 
@@ -73,7 +90,7 @@ class MarkerSnooper(Node):
 
         self.send_request_ptu_speed()
 
-        self.client_ptu_limits = self.create_client(GetLimits, '/PTU/get_limits')
+        self.client_ptu_limits = self.create_client(GetLimits, self.ptu_get_limits_service)
         while not self.client_ptu_limits.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('service GetLimits not available, waiting again...')
 
@@ -96,18 +113,10 @@ class MarkerSnooper(Node):
             self.tilt_min = response.tilt_min
             self.tilt_max = response.tilt_max
 
-            print("Max pan: {0}".format(self.pan_max))
-            print("Min pan: {0}".format(self.pan_min))
-
             self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
-            
-            print("Step Pan Snoop: {0}".format(self.step_snooping))
 
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
-
-
-
 
     # This function stops/enable the acquisition stream
     def execute_service_start_callback(self, request, response):
@@ -120,7 +129,6 @@ class MarkerSnooper(Node):
         self.restart_snoop()
 
         return response
-
 
 
     def execute_action_start_callback(self, goal_handle):

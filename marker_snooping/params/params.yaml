@@ -1,0 +1,19 @@
+marker_snooper:
+  ros__parameters:
+
+    event: discovery_event   # Evdev path
+    controller_name: logitech_panel # Name of controller, if discovery ignored
+
+    subscribers:
+      ptu_to_marker_pose: /target_tracking/ptu_to_marker_pose
+
+    services:
+      start: /marker_snooping/start
+
+    actions: 
+      start: /marker_snooping/start_action
+
+    services_client:
+      set_pan_tilt: /PTU/set_pan_tilt
+      set_pan_tilt_speed: /PTU/set_pan_tilt_speed
+      get_limits: /PTU/get_limits
