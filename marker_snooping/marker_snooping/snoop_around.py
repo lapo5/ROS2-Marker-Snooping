@@ -15,7 +15,7 @@ from functools import partial
 from geometry_msgs.msg import PoseStamped
 
 from std_msgs.msg import Header
-from std_srvs.srv import Empty
+from std_srvs.srv import Empty, Trigger
 
 from marker_snooping_interfaces.action import Snooping
 from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, GetLimits
@@ -24,17 +24,26 @@ from flir_ptu_d46_interfaces.action import SetPanTilt
 
 class MarkerSnooper(Node):
     def __init__(self):
-        super().__init__("marker_snooper")
-        self.get_logger().info("Marker Snooper node is awake...")
+        super().__init__("marker_snooping")
+        self.get_logger().info("Marker Snooping node is awake...")
 
-        self.tilt_static = 0.2
+        self.declare_parameter("tilt_static", "0.2")
+        self.tilt_static = float(self.get_parameter("tilt_static").value)
+
+        self.declare_parameter("discretization", "10")
+        self.discretization = int(self.get_parameter("discretization").value)
+
+        if self.discretization <= 0:
+            self.get_logger().info("discretization must be integer > 0")
+            return None
+
+        self.declare_parameter("time_to_sleep", "3.0")
+        self.time_to_sleep = float(self.get_parameter("time_to_sleep").value)
 
         self.step_snooping = 0.0
         self.current_pan = 0.0
 
-        self.discretization = 10
         self.current_step = 0
-        self.time_to_sleep = 3.0
 
         self.operating = False
         self.sleep_timer = None
@@ -47,30 +56,21 @@ class MarkerSnooper(Node):
         self.declare_parameter("services.start", "/marker_snooping/start")
         self.start_service = self.get_parameter("services.start").value
 
-        self.declare_parameter("services_client.set_pan_tilt", "/PTU/set_pan_tilt")
+        self.declare_parameter("services_client.set_pan_tilt", "/ptu/set_pan_tilt")
         self.set_pan_tilt_service = self.get_parameter("services_client.set_pan_tilt").value
 
-        self.declare_parameter("services_client.set_pan_tilt_speed", "/PTU/set_pan_tilt_speed")
+        self.declare_parameter("services_client.set_pan_tilt_speed", "/ptu/set_pan_tilt_speed")
         self.set_pan_tilt_speed_service = self.get_parameter("services_client.set_pan_tilt_speed").value
 
-        self.declare_parameter("services_client.get_limits", "/PTU/get_limits")
+        self.declare_parameter("services_client.get_limits", "/ptu/get_limits")
         self.ptu_get_limits_service = self.get_parameter("services_client.get_limits").value
 
         self.declare_parameter("actions.start", "/marker_snooping/start_action")
         self.start_action = self.get_parameter("actions.start").value
 
+
         # Subscription
         self.marker_sub = self.create_subscription(PoseStamped, self.ptu_to_marker_pose_topic, self.callback_marker, 1)
-
-        # Service: start snooping
-        self.start_snooping_service = self.create_service(Empty, self.start_service, self.execute_service_start_callback)
-
-        self.start_snooping_action = ActionServer(
-            self,
-            Snooping,
-            self.start_action,
-            self.execute_action_start_callback)
-        self.executing_action = False
 
         # Clients
 
@@ -99,7 +99,6 @@ class MarkerSnooper(Node):
         self.send_request_ptu_limits()
 
 
-
     def send_request_ptu_limits(self):
         self.future = self.client_ptu_limits.call_async(self.req_ptu_get_limits)
         self.future.add_done_callback(partial(self.callback_ptu_get_limits))
@@ -115,20 +114,17 @@ class MarkerSnooper(Node):
 
             self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
 
+            self.start_snooping_action = ActionServer(
+                self,
+                Snooping,
+                self.start_action,
+                self.execute_action_start_callback)
+            self.executing_action = False
+
+            self.get_logger().info("Marker Snooping node ready")
+
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
-
-    # This function stops/enable the acquisition stream
-    def execute_service_start_callback(self, request, response):
-
-        self.current_step = 1
-        self.ptu_arrived = False
-        self.operating = True
-        self.marker_in_sight = False
-        self.current_pan = self.pan_min
-        self.restart_snoop()
-
-        return response
 
 
     def execute_action_start_callback(self, goal_handle):

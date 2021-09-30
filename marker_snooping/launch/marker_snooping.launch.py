@@ -13,11 +13,10 @@ from launch.actions.execute_process import ExecuteProcess
 
 def generate_launch_description():
     return LaunchDescription([
-        
         Node(
             package='marker_snooping',
             executable='marker_snooping',
-            name='marker_snooping'
+            name='marker_snooping',
             output={
                     "stdout": "screen",
                     "stderr": "screen",
