@@ -48,5 +48,22 @@ def generate_launch_description():
                     "stderr": "screen",
             },
             parameters=[os.path.join(get_package_share_directory("marker_snooping"), 'params', 'params.yaml')],
-        )
+        ),
+        Node(
+            package='pasqua_tf',
+            executable='camera_to_ptu_base',
+            name='camera_to_ptu_base',
+            output={
+                    "stdout": "screen",
+                    "stderr": "screen",
+            },
+            parameters=[os.path.join(get_package_share_directory("pasqua_tf"), 'params', 'camera_to_ptu_base_params.yaml')],
+        ),
+        Node(
+            package='pasqua_tf',
+            namespace='tf_tree',
+            executable='tf_tree_rear_camera',
+            name='tf_tree_rear_camera',
+            output='screen',
+        ),
 ])
