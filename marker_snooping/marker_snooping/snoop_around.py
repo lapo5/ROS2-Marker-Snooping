@@ -12,7 +12,7 @@ import rclpy.time
 from rclpy.action import ActionClient, ActionServer
 
 from functools import partial
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import TransformStamped
 
 from std_msgs.msg import Header
 from std_srvs.srv import Empty, Trigger
@@ -50,8 +50,8 @@ class MarkerSnooper(Node):
 
         self.ptu_arrived = False
 
-        self.declare_parameter("subscribers.ptu_to_marker_pose", "/target_tracking/ptu_to_marker_pose")
-        self.ptu_to_marker_pose_topic = self.get_parameter("subscribers.ptu_to_marker_pose").value
+        self.declare_parameter("subscribers.ptu_to_marker_transform", "/target_tracking/ptu_to_marker_transform")
+        self.ptu_to_marker_pose_topic = self.get_parameter("subscribers.ptu_to_marker_transform").value
 
         self.declare_parameter("services.start", "/marker_snooping/start")
         self.start_service = self.get_parameter("services.start").value
@@ -70,7 +70,7 @@ class MarkerSnooper(Node):
 
 
         # Subscription
-        self.marker_sub = self.create_subscription(PoseStamped, self.ptu_to_marker_pose_topic, self.callback_marker, 1)
+        self.marker_sub = self.create_subscription(TransformStamped, self.ptu_to_marker_pose_topic, self.callback_marker, 1)
 
         # Clients
 

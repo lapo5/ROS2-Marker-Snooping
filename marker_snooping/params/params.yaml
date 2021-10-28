@@ -6,7 +6,7 @@ marker_snooping:
     time_to_sleep: 3.0
 
     subscribers:
-      ptu_to_marker_pose: /target_tracking/ptu_to_marker_pose
+      ptu_to_marker_transform: /target_tracking/ptu_to_marker_transform
 
     services:
       start: /marker_snooping/start
