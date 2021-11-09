@@ -14,8 +14,6 @@ from launch.actions.execute_process import ExecuteProcess
 
 def generate_launch_description():
 
-    camera_link = "camera_link"
-    
     params_cam = os.path.join(get_package_share_directory("hal_allied_vision_camera"), 'params', 'params_pasqualone.yaml')
     params_ptu = os.path.join(get_package_share_directory("hal_flir_d46"), 'params', 'params_pasqualone.yaml')
     params_aruco = os.path.join(get_package_share_directory("camera_target_tracking"), 'params', 'params_pasqualone.yaml')
@@ -36,7 +34,7 @@ def generate_launch_description():
         Node(
             package='hal_allied_vision_camera',
             executable='av_node',
-            name='hal_allied_vision_camera',
+            name='av_node',
             parameters=[params_cam],
         ),
         Node(
@@ -60,16 +58,6 @@ def generate_launch_description():
             parameters=[params_aruco]
         ),
         Node(
-            package='marker_snooping',
-            executable='marker_snooping',
-            name='marker_snooping',
-            output={
-                    "stdout": "screen",
-                    "stderr": "screen",
-            },
-            parameters=[params_marker_snooping],
-        ),
-        Node(
             package='aruco_pose_filter',
             executable='pose_filter',
             name='pose_filter',
@@ -79,12 +67,14 @@ def generate_launch_description():
             },
             parameters=[params_aruco_filter],
         ),
-
         Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='static_transform_publisher',
-            output='screen',
-            arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'world', camera_link]
-        )
+            package='marker_snooping',
+            executable='marker_snooping',
+            name='marker_snooping',
+            output={
+                    "stdout": "screen",
+                    "stderr": "screen",
+            },
+            parameters=[params_marker_snooping],
+        ),
 ])
