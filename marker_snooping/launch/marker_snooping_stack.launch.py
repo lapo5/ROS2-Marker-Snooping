@@ -2,6 +2,7 @@ from launch import LaunchDescription
 from ament_index_python.packages import get_package_share_directory
 import launch_ros.actions
 import os
+import sys
 import yaml
 from launch.substitutions import EnvironmentVariable
 import pathlib
@@ -12,12 +13,30 @@ from launch_ros.actions import Node
 from launch.actions.execute_process import ExecuteProcess
 
 def generate_launch_description():
+
+    
+    params_cam = os.path.join(get_package_share_directory("hal_allied_vision_camera"), 'params', 'params_pasqualone.yaml')
+    params_ptu = os.path.join(get_package_share_directory("hal_flir_d46"), 'params', 'params_pasqualone.yaml')
+    params_aruco = os.path.join(get_package_share_directory("camera_target_tracking"), 'params', 'params_pasqualone.yaml')
+    params_marker_snooping = os.path.join(get_package_share_directory("marker_snooping"), 'params', 'params_pasqualone.yaml')
+    params_aruco_filter = os.path.join(get_package_share_directory("aruco_pose_filter"), 'params', 'params_pasqualone.yaml')
+    
+    for arg in sys.argv:
+        if arg.startswith("project:="):
+            project = arg.split(":=")[1]
+            params_cam = os.path.join(get_package_share_directory("hal_allied_vision_camera"), 'params', 'params_' + project + '.yaml')
+            params_ptu = os.path.join(get_package_share_directory("hal_flir_d46"), 'params', 'params_' + project + '.yaml')
+            params_aruco = os.path.join(get_package_share_directory("camera_target_tracking"), 'params', 'params_' + project + '.yaml')
+            params_marker_snooping = os.path.join(get_package_share_directory("marker_snooping"), 'params', 'params_' + project + '.yaml')
+            params_aruco_filter = os.path.join(get_package_share_directory("aruco_pose_filter"), 'params', 'params_' + project + '.yaml')
+    
+
     return LaunchDescription([
         Node(
             package='hal_allied_vision_camera',
             executable='av_node',
             name='hal_allied_vision_camera',
-            parameters=[os.path.join(get_package_share_directory("hal_allied_vision_camera"), 'params', 'params.yaml')],
+            parameters=[params_cam],
         ),
         Node(
             package='hal_flir_d46',
@@ -27,7 +46,7 @@ def generate_launch_description():
                     "stdout": "screen",
                     "stderr": "screen",
             },
-            parameters=[os.path.join(get_package_share_directory("hal_flir_d46"), 'params', 'params.yaml')],
+            parameters=[params_ptu],
         ),
         Node(
             package='camera_target_tracking',
@@ -37,7 +56,7 @@ def generate_launch_description():
                     "stdout": "screen",
                     "stderr": "screen",
             },
-            parameters=[os.path.join(get_package_share_directory("camera_target_tracking"), 'params', 'params.yaml')],
+            parameters=[params_aruco]
         ),
         Node(
             package='marker_snooping',
@@ -47,23 +66,16 @@ def generate_launch_description():
                     "stdout": "screen",
                     "stderr": "screen",
             },
-            parameters=[os.path.join(get_package_share_directory("marker_snooping"), 'params', 'params.yaml')],
+            parameters=[params_marker_snooping],
         ),
         Node(
-            package='pasqua_tf',
-            executable='camera_to_ptu_base',
-            name='camera_to_ptu_base',
+            package='aruco_pose_filter',
+            executable='pose_filter',
+            name='pose_filter',
             output={
                     "stdout": "screen",
                     "stderr": "screen",
             },
-            parameters=[os.path.join(get_package_share_directory("pasqua_tf"), 'params', 'camera_to_ptu_base_params.yaml')],
-        ),
-        Node(
-            package='pasqua_tf',
-            namespace='tf_tree',
-            executable='tf_tree_rear_camera',
-            name='tf_tree_rear_camera',
-            output='screen',
-        ),
+            parameters=[params_aruco_filter],
+        )
 ])

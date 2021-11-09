@@ -1,0 +1,20 @@
+marker_snooping:
+  ros__parameters:
+
+    tilt_static: 0.05
+    discretization: 10
+    time_to_sleep: 3.0
+
+    subscribers:
+      ptu_to_marker_transform: /target_tracking/ptu_to_marker_transform
+
+    services:
+      start: /marker_snooping/start
+
+    actions: 
+      start: /marker_snooping/start_action
+
+    services_client:
+      set_pan_tilt: /ptu/set_pan_tilt
+      set_pan_tilt_speed: /ptu/set_pan_tilt_speed
+      get_limits: /ptu/get_limits
