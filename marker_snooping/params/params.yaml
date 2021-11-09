@@ -1,7 +1,7 @@
 marker_snooping:
   ros__parameters:
 
-    tilt_static: 0.2
+    tilt_static: 0.05
     discretization: 10
     time_to_sleep: 3.0
 
