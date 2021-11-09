@@ -14,6 +14,7 @@ from launch.actions.execute_process import ExecuteProcess
 
 def generate_launch_description():
 
+    camera_link = "camera_link"
     
     params_cam = os.path.join(get_package_share_directory("hal_allied_vision_camera"), 'params', 'params_pasqualone.yaml')
     params_ptu = os.path.join(get_package_share_directory("hal_flir_d46"), 'params', 'params_pasqualone.yaml')
@@ -77,5 +78,13 @@ def generate_launch_description():
                     "stderr": "screen",
             },
             parameters=[params_aruco_filter],
+        ),
+
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='static_transform_publisher',
+            output='screen',
+            arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'world', camera_link]
         )
 ])
