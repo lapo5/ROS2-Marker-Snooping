@@ -14,28 +14,26 @@ from launch.actions.execute_process import ExecuteProcess
 
 def generate_launch_description():
 
-    params_cam = os.path.join(get_package_share_directory("hal_allied_vision_camera"), 'params', 'params_pasqualone.yaml')
     params_ptu = os.path.join(get_package_share_directory("hal_flir_d46"), 'params', 'params_pasqualone.yaml')
-    params_aruco = os.path.join(get_package_share_directory("camera_target_tracking"), 'params', 'params_pasqualone.yaml')
     params_marker_snooping = os.path.join(get_package_share_directory("marker_snooping"), 'params', 'params_pasqualone.yaml')
     params_aruco_filter = os.path.join(get_package_share_directory("aruco_pose_filter"), 'params', 'params_pasqualone.yaml')
     
     for arg in sys.argv:
         if arg.startswith("project:="):
             project = arg.split(":=")[1]
-            params_cam = os.path.join(get_package_share_directory("hal_allied_vision_camera"), 'params', 'params_' + project + '.yaml')
             params_ptu = os.path.join(get_package_share_directory("hal_flir_d46"), 'params', 'params_' + project + '.yaml')
-            params_aruco = os.path.join(get_package_share_directory("camera_target_tracking"), 'params', 'params_' + project + '.yaml')
             params_marker_snooping = os.path.join(get_package_share_directory("marker_snooping"), 'params', 'params_' + project + '.yaml')
             params_aruco_filter = os.path.join(get_package_share_directory("aruco_pose_filter"), 'params', 'params_' + project + '.yaml')
     
-
     return LaunchDescription([
         Node(
-            package='hal_allied_vision_camera',
-            executable='av_node',
-            name='av_node',
-            parameters=[params_cam],
+            package='simulation_utilities',
+            executable='simulate_marker',
+            name='simulate_marker',
+            output={
+                    "stdout": "screen",
+                    "stderr": "screen",
+            },
         ),
         Node(
             package='hal_flir_d46',
@@ -46,16 +44,6 @@ def generate_launch_description():
                     "stderr": "screen",
             },
             parameters=[params_ptu],
-        ),
-        Node(
-            package='camera_target_tracking',
-            executable='aruco_detector',
-            name='aruco_detector',
-            output={
-                    "stdout": "screen",
-                    "stderr": "screen",
-            },
-            parameters=[params_aruco]
         ),
         Node(
             package='aruco_pose_filter',

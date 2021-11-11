@@ -50,8 +50,8 @@ class MarkerSnooper(Node):
 
         self.ptu_arrived = False
 
-        self.declare_parameter("subscribers.ptu_to_marker_transform", "/target_tracking/ptu_to_marker_transform")
-        self.ptu_to_marker_pose_topic = self.get_parameter("subscribers.ptu_to_marker_transform").value
+        self.declare_parameter("subscribers.marker_in_sight", "/target_tracking/ptu_to_marker_transform")
+        self.marker_in_sight_topic_name = self.get_parameter("subscribers.marker_in_sight").value
 
         self.declare_parameter("services.start", "/marker_snooping/start")
         self.start_service = self.get_parameter("services.start").value
@@ -68,12 +68,10 @@ class MarkerSnooper(Node):
         self.declare_parameter("actions.start", "/marker_snooping/start_action")
         self.start_action = self.get_parameter("actions.start").value
 
-
         # Subscription
-        self.marker_sub = self.create_subscription(TransformStamped, self.ptu_to_marker_pose_topic, self.callback_marker, 1)
+        self.marker_sub = self.create_subscription(TransformStamped, self.marker_in_sight_topic_name, self.callback_marker, 1)
 
         # Clients
-
         self.action_client_ptu = ActionClient(self, SetPanTilt, self.set_pan_tilt_service)
         while not self.action_client_ptu.wait_for_server(timeout_sec=1.0):
             self.get_logger().info('Action SetPanTilt not available, waiting again...')
