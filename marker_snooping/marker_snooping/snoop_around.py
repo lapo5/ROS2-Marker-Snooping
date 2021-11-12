@@ -49,6 +49,7 @@ class MarkerSnooper(Node):
         self.sleep_timer = None
 
         self.ptu_arrived = False
+        self.started = False
 
         self.declare_parameter("subscribers.marker_in_sight", "/target_tracking/ptu_to_marker_transform")
         self.marker_in_sight_topic_name = self.get_parameter("subscribers.marker_in_sight").value
@@ -180,6 +181,7 @@ class MarkerSnooper(Node):
         self.ptu_arrived = True
 
     def restart_snoop(self):
+        self.started = False
         
         if self.executing_action:
             self.feedback_msg.percentage_of_completing = 0
@@ -195,6 +197,7 @@ class MarkerSnooper(Node):
                     self.operating = False
                 else:
                     self.move_ptu(self.current_pan, self.tilt_static)
+                    self.started = True
 
                     self.current_pan = self.current_pan + self.step_snooping
 
@@ -208,7 +211,7 @@ class MarkerSnooper(Node):
 
     # This function store the received frame in a class attribute
     def callback_marker(self, msg):
-        if self.operating and not self.marker_in_sight:   
+        if self.operating and self.started and not self.marker_in_sight:   
             self.marker_in_sight = True
             self.get_logger().info('Marker in sight!')
             self.operating = False

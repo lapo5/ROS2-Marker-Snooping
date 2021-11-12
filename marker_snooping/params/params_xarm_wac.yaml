@@ -1,0 +1,20 @@
+marker_snooping:
+  ros__parameters:
+
+    tilt_static: 0.05
+    discretization: 3
+    time_to_sleep: 3.0
+
+    subscribers:
+      marker_in_sight: /wac/target_tracking/camera_to_marker_transform/filter/marker_69
+
+    services:
+      start: /marker_snooping/start
+
+    actions: 
+      start: /marker_snooping/start_action
+
+    services_client:
+      set_pan_tilt: /ptu/set_pan_tilt
+      set_pan_tilt_speed: /ptu/set_pan_tilt_speed
+      get_limits: /ptu/get_limits
