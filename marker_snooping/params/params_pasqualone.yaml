@@ -9,7 +9,7 @@ marker_snooping:
       marker_in_sight: /target_tracking/ptu_to_marker_transform
 
     services:
-      start: /marker_snooping/start
+      set_tilt_static: /marker_snooping/set_tilt_static
 
     actions: 
       start: /marker_snooping/start_action

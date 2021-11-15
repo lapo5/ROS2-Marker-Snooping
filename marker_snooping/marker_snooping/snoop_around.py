@@ -18,6 +18,7 @@ from std_msgs.msg import Header
 from std_srvs.srv import Empty, Trigger
 
 from marker_snooping_interfaces.action import Snooping
+from marker_snooping_interfaces.srv import SetTiltStatic
 from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, GetLimits
 from flir_ptu_d46_interfaces.action import SetPanTilt
 
@@ -54,8 +55,9 @@ class MarkerSnooper(Node):
         self.declare_parameter("subscribers.marker_in_sight", "/target_tracking/ptu_to_marker_transform")
         self.marker_in_sight_topic_name = self.get_parameter("subscribers.marker_in_sight").value
 
-        self.declare_parameter("services.start", "/marker_snooping/start")
-        self.start_service = self.get_parameter("services.start").value
+        self.declare_parameter("services.set_tilt_static", "/marker_snooping/set_tilt_static")
+        self.set_tilt_static_service_name = self.get_parameter("services.set_tilt_static").value
+        self.set_tilt_static_srv = self.create_service(SetTiltStatic, self.set_tilt_static_service_name, self.set_tilt_static)
 
         self.declare_parameter("services_client.set_pan_tilt", "/ptu/set_pan_tilt")
         self.set_pan_tilt_service = self.get_parameter("services_client.set_pan_tilt").value
@@ -98,6 +100,18 @@ class MarkerSnooper(Node):
         self.send_request_ptu_limits()
 
 
+
+    def set_tilt_static(self, request, response):
+        self.get_logger().info('[Marker Snooping] Set Tilt Static')
+ 
+        self.tilt_static = request.tilt_static
+        self.move_ptu(self.current_pan, self.tilt_static)
+
+        response.res = True
+
+        return response
+
+
     def send_request_ptu_limits(self):
         self.future = self.client_ptu_limits.call_async(self.req_ptu_get_limits)
         self.future.add_done_callback(partial(self.callback_ptu_get_limits))
@@ -119,15 +133,15 @@ class MarkerSnooper(Node):
                 self.start_action,
                 self.execute_action_start_callback)
             self.executing_action = False
-
-            self.get_logger().info("Marker Snooping node ready")
+            
+            self.get_logger().info('[Marker Snooping] Ready')
 
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
 
 
     def execute_action_start_callback(self, goal_handle):
-        self.get_logger().info('Executing goal...')
+        self.get_logger().info('[Marker Snooping] Executing goal...')
 
         self.current_step = 1
         self.ptu_arrived = False
@@ -193,7 +207,7 @@ class MarkerSnooper(Node):
                     self.sleep_timer.cancel()
 
                 if self.current_pan > self.pan_max:
-                    self.get_logger().info('Marker not found!')
+                    self.get_logger().info('[Marker Snooping] Marker not found!')
                     self.operating = False
                 else:
                     self.move_ptu(self.current_pan, self.tilt_static)
@@ -213,7 +227,7 @@ class MarkerSnooper(Node):
     def callback_marker(self, msg):
         if self.operating and self.started and not self.marker_in_sight:   
             self.marker_in_sight = True
-            self.get_logger().info('Marker in sight!')
+            self.get_logger().info('[Marker Snooping] Marker in sight!')
             self.operating = False
 
 
@@ -238,9 +252,9 @@ def main(args=None):
             rclpy.spin_once(node)
 
     except KeyboardInterrupt:
-        print("Marker Snooper Node stopped clearly")
+        print("[Marker Snooping] Node stopped clearly")
     except BaseException:
-        print('Exception in Marker Snooper Node:', file=sys.stderr)
+        print('[Marker Snooping] Exception:', file=sys.stderr)
         raise
     finally:
         # Destroy the node explicitly

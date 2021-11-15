@@ -1,0 +1,7 @@
+# Request: enable/disable the service
+# Response: the service state
+
+float32 tilt_static
+---
+bool res
+
