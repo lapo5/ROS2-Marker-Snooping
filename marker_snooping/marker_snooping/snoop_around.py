@@ -2,7 +2,6 @@
 
 # Libraries
 import sys
-import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 import rclpy
@@ -11,10 +10,8 @@ import rclpy.time
 from rclpy.action import ActionClient, ActionServer
 
 from functools import partial
-from geometry_msgs.msg import TransformStamped
 
-from std_msgs.msg import Header, Bool
-from std_srvs.srv import Empty, Trigger
+from std_msgs.msg import Bool
 
 from marker_snooping_interfaces.action import Snooping
 from marker_snooping_interfaces.srv import SetTiltStatic
