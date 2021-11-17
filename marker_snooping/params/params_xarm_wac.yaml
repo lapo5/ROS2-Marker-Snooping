@@ -6,8 +6,8 @@ marker_snooping:
     time_to_sleep: 3.0
 
     subscribers:
-      marker_in_sight: /wac/target_tracking/camera_to_marker_transform/filter/marker_69
-
+      marker_in_sight: /wac/target_tracking/camera_to_marker_presence/marker_69
+      
     services:
       set_tilt_static: /marker_snooping/set_tilt_static
 

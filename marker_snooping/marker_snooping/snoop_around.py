@@ -14,7 +14,7 @@ from rclpy.action import ActionClient, ActionServer
 from functools import partial
 from geometry_msgs.msg import TransformStamped
 
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Bool
 from std_srvs.srv import Empty, Trigger
 
 from marker_snooping_interfaces.action import Snooping
@@ -52,7 +52,7 @@ class MarkerSnooper(Node):
         self.ptu_arrived = False
         self.started = False
 
-        self.declare_parameter("subscribers.marker_in_sight", "/target_tracking/ptu_to_marker_transform")
+        self.declare_parameter("subscribers.marker_in_sight", "/target_tracking/camera_to_marker_presence/marker_69")
         self.marker_in_sight_topic_name = self.get_parameter("subscribers.marker_in_sight").value
 
         self.declare_parameter("services.set_tilt_static", "/marker_snooping/set_tilt_static")
@@ -72,7 +72,7 @@ class MarkerSnooper(Node):
         self.start_action = self.get_parameter("actions.start").value
 
         # Subscription
-        self.marker_sub = self.create_subscription(TransformStamped, self.marker_in_sight_topic_name, self.callback_marker, 1)
+        self.marker_sub = self.create_subscription(Bool, self.marker_in_sight_topic_name, self.callback_marker, 1)
 
         # Clients
         self.action_client_ptu = ActionClient(self, SetPanTilt, self.set_pan_tilt_service)
@@ -226,9 +226,11 @@ class MarkerSnooper(Node):
     # This function store the received frame in a class attribute
     def callback_marker(self, msg):
         if self.operating and self.started and not self.marker_in_sight:   
-            self.marker_in_sight = True
-            self.get_logger().info('[Marker Snooping] Marker in sight!')
-            self.operating = False
+            self.marker_in_sight = msg.data
+
+            if self.marker_in_sight:
+                self.get_logger().info('[Marker Snooping] Marker in sight!')
+                self.operating = False
 
 
     def move_ptu(self, pan, tilt):
