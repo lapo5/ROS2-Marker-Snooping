@@ -2,7 +2,6 @@
 
 # Libraries
 import sys
-import json
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
@@ -182,7 +181,7 @@ class MarkerSnooper(Node):
         try:
             response = future.result().result
             
-            self.feedback_msg.percentage_of_completing = int(self.current_step  * 100.0 / float(self.discretization + 1))
+            self.feedback_msg.percentage_of_completing = self.current_step  * 100.0 / float(self.discretization + 1)
             self.goal_handle.publish_feedback(self.feedback_msg)
 
             if self.operating:
@@ -198,7 +197,7 @@ class MarkerSnooper(Node):
         self.started = False
         
         if self.executing_action:
-            self.feedback_msg.percentage_of_completing = 0
+            self.feedback_msg.percentage_of_completing = 0.0
             self.goal_handle.publish_feedback(self.feedback_msg)
 
         while self.operating:
@@ -259,8 +258,6 @@ def main(args=None):
         print('[Marker Snooping] Exception:', file=sys.stderr)
         raise
     finally:
-        # Destroy the node explicitly
-        # (optional - Done automatically when node is garbage collected)
         rclpy.shutdown() 
 
 
