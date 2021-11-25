@@ -87,13 +87,36 @@ class MarkerSnooper(Node):
 
         self.send_request_ptu_speed()
 
-        self.client_ptu_limits = self.create_client(GetLimits, self.ptu_get_limits_service)
-        while not self.client_ptu_limits.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service GetLimits not available, waiting again...')
+        self.start_snooping_action = ActionServer(
+            self,
+            Snooping,
+            self.start_action,
+            self.execute_action_start_callback)
+        self.executing_action = False
 
-        self.req_ptu_get_limits = GetLimits.Request()
+        self.declare_parameter("limits.mode", "auto")
+        self.limits_mode = self.get_parameter("limits.mode").value
 
-        self.send_request_ptu_limits()
+        if self.limits_mode == "auto":
+            self.client_ptu_limits = self.create_client(GetLimits, self.ptu_get_limits_service)
+            while not self.client_ptu_limits.wait_for_service(timeout_sec=1.0):
+                self.get_logger().info('service GetLimits not available, waiting again...')
+
+            self.req_ptu_get_limits = GetLimits.Request()
+
+            self.send_request_ptu_limits()
+
+        else:
+
+            self.declare_parameter("limits.pan_min", "-0.7")
+            self.pan_min = float(self.get_parameter("limits.pan_min").value)
+
+            self.declare_parameter("limits.pan_max", "0.7")
+            self.pan_max = float(self.get_parameter("limits.pan_min").value)
+
+            self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
+
+            self.get_logger().info('[Marker Snooping] Ready')
 
 
 
@@ -123,12 +146,6 @@ class MarkerSnooper(Node):
 
             self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
 
-            self.start_snooping_action = ActionServer(
-                self,
-                Snooping,
-                self.start_action,
-                self.execute_action_start_callback)
-            self.executing_action = False
             
             self.get_logger().info('[Marker Snooping] Ready')
 
