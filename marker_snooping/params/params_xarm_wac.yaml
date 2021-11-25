@@ -8,7 +8,7 @@ marker_snooping:
     marker_id: 20
 
     subscribers:
-      marker_in_sight_prefix: /wac/target_tracking/camera_to_marker_presence/marker_
+      marker_in_sight_prefix: /target_tracking/camera_to_marker_presence/marker_
       
     services:
       set_tilt_static: /marker_snooping/set_tilt_static
