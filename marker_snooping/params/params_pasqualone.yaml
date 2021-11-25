@@ -5,8 +5,10 @@ marker_snooping:
     discretization: 10
     time_to_sleep: 3.0
 
+    marker_id: 20
+
     subscribers:
-      marker_in_sight: /target_tracking/camera_to_marker_presence/marker_20
+      marker_in_sight_prefix: /target_tracking/camera_to_marker_presence/marker_
 
     services:
       set_tilt_static: /marker_snooping/set_tilt_static

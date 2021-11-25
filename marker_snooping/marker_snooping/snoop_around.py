@@ -48,9 +48,14 @@ class MarkerSnooper(Node):
         self.ptu_arrived = False
         self.started = False
 
-        self.declare_parameter("subscribers.marker_in_sight", "/target_tracking/camera_to_marker_presence/marker_69")
-        self.marker_in_sight_topic_name = self.get_parameter("subscribers.marker_in_sight").value
+        self.declare_parameter("subscribers.marker_in_sight_prefix", "/target_tracking/camera_to_marker_presence/marker_")
+        self.marker_in_sight_topic_prefix_name = self.get_parameter("subscribers.marker_in_sight_prefix").value
 
+        self.declare_parameter("marker_id", "20")
+        self.marker_id = self.get_parameter("marker_id").value
+
+        self.marker_in_sight_topic_name = self.marker_in_sight_topic_prefix_name + str(self.marker_id)
+        
         self.declare_parameter("services.set_tilt_static", "/marker_snooping/set_tilt_static")
         self.set_tilt_static_service_name = self.get_parameter("services.set_tilt_static").value
         self.set_tilt_static_srv = self.create_service(SetTiltStatic, self.set_tilt_static_service_name, self.set_tilt_static)
@@ -107,7 +112,6 @@ class MarkerSnooper(Node):
             self.send_request_ptu_limits()
 
         else:
-
             self.declare_parameter("limits.pan_min", "-0.7")
             self.pan_min = float(self.get_parameter("limits.pan_min").value)
 
@@ -117,7 +121,6 @@ class MarkerSnooper(Node):
             self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
 
             self.get_logger().info('[Marker Snooping] Ready')
-
 
 
     def set_tilt_static(self, request, response):
