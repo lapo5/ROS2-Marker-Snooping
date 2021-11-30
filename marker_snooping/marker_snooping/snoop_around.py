@@ -116,9 +116,9 @@ class MarkerSnooper(Node):
             self.pan_min = float(self.get_parameter("limits.pan_min").value)
 
             self.declare_parameter("limits.pan_max", "0.7")
-            self.pan_max = float(self.get_parameter("limits.pan_min").value)
+            self.pan_max = float(self.get_parameter("limits.pan_max").value)
 
-            self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
+            self.step_snooping = float(self.pan_max - self.pan_min) / (self.discretization - 1)
 
             self.get_logger().info('[Marker Snooping] Ready')
 
@@ -147,7 +147,7 @@ class MarkerSnooper(Node):
             self.tilt_min = response.tilt_min
             self.tilt_max = response.tilt_max
 
-            self.step_snooping = float(self.pan_max - self.pan_min) / self.discretization
+            self.step_snooping = float(self.pan_max - self.pan_min) / (self.discretization - 1)
 
             
             self.get_logger().info('[Marker Snooping] Ready')
