@@ -5,6 +5,7 @@ marker_snooping:
     discretization: 3
     time_to_sleep: 3.0
 
+    target_type: aruco
     marker_id: 20
 
     subscribers:

@@ -48,14 +48,22 @@ class MarkerSnooper(Node):
         self.ptu_arrived = False
         self.started = False
 
-        self.declare_parameter("subscribers.marker_in_sight_prefix", "/target_tracking/camera_to_marker_presence/marker_")
-        self.marker_in_sight_topic_prefix_name = self.get_parameter("subscribers.marker_in_sight_prefix").value
+        self.declare_parameter("target_type", "aruco")
+        self.target_type = self.get_parameter("target_type").value
 
-        self.declare_parameter("marker_id", "20")
-        self.marker_id = self.get_parameter("marker_id").value
+        if self.target_type == "aruco":
 
-        self.marker_in_sight_topic_name = self.marker_in_sight_topic_prefix_name + str(self.marker_id)
-        
+            self.declare_parameter("subscribers.marker_in_sight_prefix", "/target_tracking/camera_to_marker_presence/marker_")
+            self.marker_in_sight_topic_prefix_name = self.get_parameter("subscribers.marker_in_sight_prefix").value
+
+            self.declare_parameter("marker_id", "20")
+            self.marker_id = self.get_parameter("marker_id").value
+
+            self.target_present_topic_name = self.marker_in_sight_topic_prefix_name + str(self.marker_id)
+        elif self.target == "nn_detection":
+            self.declare_parameter("subscribers.target_presence", "/detection/presence")
+            self.target_present_topic_name = self.get_parameter("subscribers.target_presence").value
+         
         self.declare_parameter("services.set_tilt_static", "/marker_snooping/set_tilt_static")
         self.set_tilt_static_service_name = self.get_parameter("services.set_tilt_static").value
         self.set_tilt_static_srv = self.create_service(SetTiltStatic, self.set_tilt_static_service_name, self.set_tilt_static)
@@ -73,7 +81,7 @@ class MarkerSnooper(Node):
         self.start_action = self.get_parameter("actions.start").value
 
         # Subscription
-        self.marker_sub = self.create_subscription(Bool, self.marker_in_sight_topic_name, self.callback_marker, 1)
+        self.marker_sub = self.create_subscription(Bool, self.target_present_topic_name, self.callback_marker, 1)
 
         # Clients
         self.action_client_ptu = ActionClient(self, SetPanTilt, self.set_pan_tilt_service)

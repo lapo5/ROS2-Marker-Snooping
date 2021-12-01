@@ -5,8 +5,9 @@ marker_snooping:
     discretization: 10
     time_to_sleep: 3.0
 
-    marker_id: 20
+    target_type: aruco
 
+    marker_id: 20
     subscribers:
       marker_in_sight_prefix: /target_tracking/camera_to_marker_presence/marker_
 
