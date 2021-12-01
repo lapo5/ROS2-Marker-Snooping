@@ -60,7 +60,8 @@ class MarkerSnooper(Node):
             self.marker_id = self.get_parameter("marker_id").value
 
             self.target_present_topic_name = self.marker_in_sight_topic_prefix_name + str(self.marker_id)
-        elif self.target == "nn_detection":
+        
+        elif self.target_type == "nn_detection":
             self.declare_parameter("subscribers.target_presence", "/detection/presence")
             self.target_present_topic_name = self.get_parameter("subscribers.target_presence").value
          
