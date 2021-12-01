@@ -82,7 +82,7 @@ class MarkerSnooper(Node):
         self.start_action = self.get_parameter("actions.start").value
 
         # Subscription
-        self.marker_sub = self.create_subscription(Bool, self.target_present_topic_name, self.callback_marker, 1)
+        self.target_presence_sub = self.create_subscription(Bool, self.target_present_topic_name, self.callback_target_presence, 1)
 
         # Clients
         self.action_client_ptu = ActionClient(self, SetPanTilt, self.set_pan_tilt_service)
@@ -249,7 +249,7 @@ class MarkerSnooper(Node):
 
 
     # This function store the received frame in a class attribute
-    def callback_marker(self, msg):
+    def callback_target_presence(self, msg):
         if self.operating and self.started and not self.marker_in_sight:   
             self.marker_in_sight = msg.data
 
