@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(marker_snooping_interfaces)
+project(target_snooping_interfaces)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)

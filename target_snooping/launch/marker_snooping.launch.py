@@ -14,19 +14,19 @@ from launch.actions.execute_process import ExecuteProcess
 
 def generate_launch_description():
 
-    params = os.path.join(get_package_share_directory("marker_snooping"), 'params', 'params_pasqualone.yaml')
+    params = os.path.join(get_package_share_directory("target_snooping"), 'params', 'params_pasqualone.yaml')
     
     for arg in sys.argv:
         if arg.startswith("project:="):
             project = arg.split(":=")[1]
-            params = os.path.join(get_package_share_directory("marker_snooping"), 'params', 'params_' + project + '.yaml')
+            params = os.path.join(get_package_share_directory("target_snooping"), 'params', 'params_' + project + '.yaml')
         
 
     return LaunchDescription([
         Node(
-            package='marker_snooping',
-            executable='marker_snooping',
-            name='marker_snooping',
+            package='target_snooping',
+            executable='target_snooping',
+            name='target_snooping',
             output={
                     "stdout": "screen",
                     "stderr": "screen",

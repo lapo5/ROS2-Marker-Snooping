@@ -1,4 +1,4 @@
-marker_snooping:
+target_snooping:
   ros__parameters:
 
     tilt_static: 0.05
@@ -12,10 +12,10 @@ marker_snooping:
       marker_in_sight_prefix: /target_tracking/camera_to_marker_presence/marker_
 
     services:
-      set_tilt_static: /marker_snooping/set_tilt_static
+      set_tilt_static: /target_snooping/set_tilt_static
 
     actions: 
-      start: /marker_snooping/start_action
+      start: /target_snooping/start_action
 
     services_client:
       set_pan_tilt: /ptu/set_pan_tilt

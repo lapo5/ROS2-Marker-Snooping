@@ -13,16 +13,16 @@ from functools import partial
 
 from std_msgs.msg import Bool
 
-from marker_snooping_interfaces.action import Snooping
-from marker_snooping_interfaces.srv import SetTiltStatic
+from target_snooping_interfaces.action import Snooping
+from target_snooping_interfaces.srv import SetTiltStatic
 from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, GetLimits
 from flir_ptu_d46_interfaces.action import SetPanTilt
 
 
 class MarkerSnooper(Node):
     def __init__(self):
-        super().__init__("marker_snooping")
-        self.get_logger().info("Marker Snooping node is awake...")
+        super().__init__("target_snooping")
+        self.get_logger().info("Target Snooping node is awake...")
 
         self.declare_parameter("tilt_static", "0.2")
         self.tilt_static = float(self.get_parameter("tilt_static").value)
@@ -65,7 +65,7 @@ class MarkerSnooper(Node):
             self.declare_parameter("subscribers.target_presence", "/detection/presence")
             self.target_present_topic_name = self.get_parameter("subscribers.target_presence").value
          
-        self.declare_parameter("services.set_tilt_static", "/marker_snooping/set_tilt_static")
+        self.declare_parameter("services.set_tilt_static", "/target_snooping/set_tilt_static")
         self.set_tilt_static_service_name = self.get_parameter("services.set_tilt_static").value
         self.set_tilt_static_srv = self.create_service(SetTiltStatic, self.set_tilt_static_service_name, self.set_tilt_static)
 
@@ -78,7 +78,7 @@ class MarkerSnooper(Node):
         self.declare_parameter("services_client.get_limits", "/ptu/get_limits")
         self.ptu_get_limits_service = self.get_parameter("services_client.get_limits").value
 
-        self.declare_parameter("actions.start", "/marker_snooping/start_action")
+        self.declare_parameter("actions.start", "/target_snooping/start_action")
         self.start_action = self.get_parameter("actions.start").value
 
         # Subscription
@@ -129,11 +129,11 @@ class MarkerSnooper(Node):
 
             self.step_snooping = float(self.pan_max - self.pan_min) / (self.discretization - 1)
 
-            self.get_logger().info('[Marker Snooping] Ready')
+            self.get_logger().info('[Target Snooping] Ready')
 
 
     def set_tilt_static(self, request, response):
-        self.get_logger().info('[Marker Snooping] Set Tilt Static')
+        self.get_logger().info('[Target Snooping] Set Tilt Static')
  
         self.tilt_static = request.tilt_static
         self.move_ptu(self.current_pan, self.tilt_static)
@@ -159,14 +159,14 @@ class MarkerSnooper(Node):
             self.step_snooping = float(self.pan_max - self.pan_min) / (self.discretization - 1)
 
             
-            self.get_logger().info('[Marker Snooping] Ready')
+            self.get_logger().info('[Target Snooping] Ready')
 
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
 
 
     def execute_action_start_callback(self, goal_handle):
-        self.get_logger().info('[Marker Snooping] Executing goal...')
+        self.get_logger().info('[Target Snooping] Executing goal...')
 
         self.current_step = 1
         self.ptu_arrived = False
@@ -232,7 +232,7 @@ class MarkerSnooper(Node):
                     self.sleep_timer.cancel()
 
                 if self.current_pan > self.pan_max:
-                    self.get_logger().info('[Marker Snooping] Marker not found!')
+                    self.get_logger().info('[Target Snooping] Marker not found!')
                     self.operating = False
                 else:
                     self.move_ptu(self.current_pan, self.tilt_static)
@@ -254,7 +254,7 @@ class MarkerSnooper(Node):
             self.marker_in_sight = msg.data
 
             if self.marker_in_sight:
-                self.get_logger().info('[Marker Snooping] Marker in sight!')
+                self.get_logger().info('[Target Snooping] Marker in sight!')
                 self.operating = False
 
 
@@ -279,9 +279,9 @@ def main(args=None):
             rclpy.spin_once(node)
 
     except KeyboardInterrupt:
-        print("[Marker Snooping] Node stopped clearly")
+        print("[Target Snooping] Node stopped clearly")
     except BaseException:
-        print('[Marker Snooping] Exception:', file=sys.stderr)
+        print('[Target Snooping] Exception:', file=sys.stderr)
         raise
     finally:
         rclpy.shutdown() 

@@ -12,12 +12,12 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
 
-    rviz_config_path = os.path.join(get_package_share_directory("marker_snooping"), 'rviz', 'rviz_pasqualone.rviz')
+    rviz_config_path = os.path.join(get_package_share_directory("target_snooping"), 'rviz', 'rviz_pasqualone.rviz')
     camera_link = 'camera_link'
     for arg in sys.argv:
         if arg.startswith("project:="):
             project = arg.split(":=")[1]
-            rviz_config_path = os.path.join(get_package_share_directory("marker_snooping"), 'rviz', 'rviz_' + project + '.rviz')
+            rviz_config_path = os.path.join(get_package_share_directory("target_snooping"), 'rviz', 'rviz_' + project + '.rviz')
             
             if project == 'xarm':
                 camera_link = 'wrist_camera_link'

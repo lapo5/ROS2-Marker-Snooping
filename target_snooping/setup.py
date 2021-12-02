@@ -4,7 +4,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'marker_snooping'
+package_name = 'target_snooping'
 
 setup(
     name=package_name,
@@ -22,11 +22,11 @@ setup(
     zip_safe=True,
     maintainer='Marco Lapolla',
     maintainer_email='marco.lapolla5@gmail.com',
-    description='Marker Snooping via PTU Control',
+    description='Target Snooping via PTU Control',
     license='BSD',
     entry_points={
         'console_scripts': [
-        'marker_snooping = marker_snooping.snoop_around:main',
+        'target_snooping = target_snooping.target_snooping:main',
         ],
     },
 )
