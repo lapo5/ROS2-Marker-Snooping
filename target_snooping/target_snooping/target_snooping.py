@@ -19,7 +19,7 @@ from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, GetLimits
 from flir_ptu_d46_interfaces.action import SetPanTilt
 
 
-class MarkerSnooper(Node):
+class TargetSnooper(Node):
     def __init__(self):
         super().__init__("target_snooping")
         self.get_logger().info("Target Snooping node is awake...")
@@ -171,7 +171,7 @@ class MarkerSnooper(Node):
         self.current_step = 1
         self.ptu_arrived = False
         self.operating = True
-        self.marker_in_sight = False
+        self.target_in_sight = False
         self.executing_action = True
         self.current_pan = self.pan_min
 
@@ -183,7 +183,7 @@ class MarkerSnooper(Node):
         goal_handle.succeed()
 
         result = Snooping.Result()
-        result.ret = self.marker_in_sight
+        result.ret = self.target_in_sight
         self.executing_action = False
 
         return result
@@ -232,7 +232,7 @@ class MarkerSnooper(Node):
                     self.sleep_timer.cancel()
 
                 if self.current_pan > self.pan_max:
-                    self.get_logger().info('[Target Snooping] Marker not found!')
+                    self.get_logger().info('[Target Snooping] Target not found!')
                     self.operating = False
                 else:
                     self.move_ptu(self.current_pan, self.tilt_static)
@@ -250,11 +250,11 @@ class MarkerSnooper(Node):
 
     # This function store the received frame in a class attribute
     def callback_target_presence(self, msg):
-        if self.operating and self.started and not self.marker_in_sight:   
-            self.marker_in_sight = msg.data
+        if self.operating and self.started and not self.target_in_sight:   
+            self.target_in_sight = msg.data
 
-            if self.marker_in_sight:
-                self.get_logger().info('[Target Snooping] Marker in sight!')
+            if self.target_in_sight:
+                self.get_logger().info('[Target Snooping] Target in sight!')
                 self.operating = False
 
 
@@ -272,7 +272,7 @@ class MarkerSnooper(Node):
 # Main loop function
 def main(args=None):
     rclpy.init(args=args)
-    node = MarkerSnooper()
+    node = TargetSnooper()
     
     try:
         while rclpy.ok():
