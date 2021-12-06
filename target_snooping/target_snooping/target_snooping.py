@@ -24,7 +24,7 @@ class TargetSnooper(Node):
         super().__init__("target_snooping")
         self.get_logger().info("Target Snooping node is awake...")
 
-        self.declare_parameter("tilt_static", "0.2")
+        self.declare_parameter("tilt_static", "0.0")
         self.tilt_static = float(self.get_parameter("tilt_static").value)
 
         self.declare_parameter("discretization", "10")
