@@ -27,7 +27,7 @@ def generate_launch_description():
     
     return LaunchDescription([
         Node(
-            package='simulation_utilities',
+            package='camera_target_tracking',
             executable='simulate_marker',
             name='simulate_marker',
             output={
