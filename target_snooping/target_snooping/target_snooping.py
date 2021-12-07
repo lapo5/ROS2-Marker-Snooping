@@ -64,6 +64,10 @@ class TargetSnooper(Node):
         elif self.target_type == "nn_detection":
             self.declare_parameter("subscribers.target_presence", "/detection/presence")
             self.target_present_topic_name = self.get_parameter("subscribers.target_presence").value
+
+        else:
+            self.declare_parameter("subscribers.target_presence", "/detection/presence")
+            self.target_present_topic_name = self.get_parameter("subscribers.target_presence").value
          
         self.declare_parameter("services.set_tilt_static", "/target_snooping/set_tilt_static")
         self.set_tilt_static_service_name = self.get_parameter("services.set_tilt_static").value
@@ -147,7 +151,7 @@ class TargetSnooper(Node):
         self.future = self.client_ptu_limits.call_async(self.req_ptu_get_limits)
         self.future.add_done_callback(partial(self.callback_ptu_get_limits))
 
-    # This function is a callback to the client future
+
     def callback_ptu_get_limits(self, future):
         try:
             response = future.result()
@@ -193,8 +197,6 @@ class TargetSnooper(Node):
         self.client_ptu_speed.call_async(self.req_ptu_speed)
 
 
-
-    # This function is a callback to the client future
     def goal_response_callback(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
@@ -202,6 +204,7 @@ class TargetSnooper(Node):
 
         self._get_result_future = goal_handle.get_result_async()
         self._get_result_future.add_done_callback(self.get_result_callback)
+
 
     def get_result_callback(self, future):
         try:
@@ -216,8 +219,10 @@ class TargetSnooper(Node):
         except Exception as e:
             self.get_logger().info("Service call failed %r" %(e,))
 
+
     def move_ptu_completed(self):
         self.ptu_arrived = True
+
 
     def restart_snoop(self):
         self.started = False
@@ -247,8 +252,6 @@ class TargetSnooper(Node):
                 pass
                     
 
-
-    # This function store the received frame in a class attribute
     def callback_target_presence(self, msg):
         if self.operating and self.started and not self.target_in_sight:   
             self.target_in_sight = msg.data

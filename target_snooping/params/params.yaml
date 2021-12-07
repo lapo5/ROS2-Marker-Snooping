@@ -1,0 +1,27 @@
+target_snooping:
+  ros__parameters:
+
+    tilt_static: 0.0
+    discretization: 10
+    time_to_sleep: 3.0
+
+    target_type: nn_detection
+
+    subscribers:
+      target_presence: /detection/presence
+
+    services:
+      set_tilt_static: /target_snooping/set_tilt_static
+
+    actions: 
+      start: /target_snooping/start_action
+
+    services_client:
+      set_pan_tilt: /ptu/set_pan_tilt
+      set_pan_tilt_speed: /ptu/set_pan_tilt_speed
+      get_limits: /ptu/get_limits
+
+    limits:
+      mode: manual
+      pan_min: -0.8
+      pan_max: 0.8
