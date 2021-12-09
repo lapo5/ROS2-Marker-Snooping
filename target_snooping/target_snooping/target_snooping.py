@@ -282,9 +282,9 @@ def main(args=None):
             rclpy.spin_once(node)
 
     except KeyboardInterrupt:
-        print("[Target Snooping] Node stopped clearly")
+        node.get_logger().info("[Target Snooping] Node stopped clearly")
     except BaseException:
-        print('[Target Snooping] Exception:', file=sys.stderr)
+        node.get_logger().info('[Target Snooping] Exception:', file=sys.stderr)
         raise
     finally:
         rclpy.shutdown() 
