@@ -30,4 +30,4 @@ in any other case, the target presence topic is specified directly by subscriber
 ## Depend
 
 - ROS2
-- flir_ptu_d46_interfaces
+- ptu_interfaces

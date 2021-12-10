@@ -15,8 +15,8 @@ from std_msgs.msg import Bool
 
 from target_snooping_interfaces.action import Snooping
 from target_snooping_interfaces.srv import SetTiltStatic
-from flir_ptu_d46_interfaces.srv import SetPanTiltSpeed, GetLimits
-from flir_ptu_d46_interfaces.action import SetPanTilt
+from ptu_interfaces.srv import SetPanTiltSpeed, GetLimits
+from ptu_interfaces.action import SetPanTilt
 
 
 class TargetSnooper(Node):
