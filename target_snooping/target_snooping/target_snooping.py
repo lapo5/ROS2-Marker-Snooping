@@ -272,7 +272,7 @@ class TargetSnooper(Node):
             rclpy.spin_once(self)
 
 
-# Main loop function
+##### Main Function #####
 def main(args=None):
     rclpy.init(args=args)
     node = TargetSnooper()
@@ -292,6 +292,5 @@ def main(args=None):
         rclpy.shutdown() 
 
 
-# Main
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
